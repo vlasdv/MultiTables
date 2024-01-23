@@ -18,79 +18,100 @@ struct Question {
     }
 }
 
-struct ContentView: View {
+struct SettingsView: View {
+    let startGame: ([Question]) -> Void
+
     @State private var difficulty = 0
     @State private var numberOfQuestions = 5
+    let availableNumberOfQuestions = [5, 10, 20]
     
     @State private var questions = [Question]()
-    @State private var gameActive = false
+    
+    init(startGame: @escaping ([Question]) -> Void) {
+        self.startGame = startGame
+    }
+    var body: some View {
+        Form {
+            Picker("Difficulty level", selection: $difficulty) {
+                ForEach(2..<13) {
+                    Text("\($0)")
+                }
+            }
+            
+            Text("How many questions would you like to answer?")
+            Picker("Select number of questions", selection: $numberOfQuestions) {
+                ForEach(availableNumberOfQuestions, id: \.self) {
+                    Text("\($0)")
+                }
+            }
+            .pickerStyle(.segmented)
+            
+            
+            Button("Start") {
+                questions = generateQuestions(difficulty: difficulty, numberOfQuestions: numberOfQuestions)
+                startGame(questions)
+            }
+            .frame(maxWidth: .infinity)
+            .buttonStyle(.bordered)
+            .background(.blue)
+            .foregroundStyle(.white)
+            .clipShape(.rect(cornerRadius: 20))
+        }
+    }
+    
+    func generateQuestions(difficulty: Int, numberOfQuestions: Int) -> [Question] {
+        var questions = [Question]()
+        for _ in 0..<numberOfQuestions {
+            questions.append(Question(x: Int.random(in: 1...(difficulty + 2)), y: Int.random(in: 1...(difficulty + 2))))
+        }
+        return questions
+    }
+}
+
+struct GameView: View {
     @State private var currentQuestion = 0
     @State private var answer = 0
     @State private var score = 0
-        
     @State private var showResults = false
     
-    let availableNumberOfQuestions = [5, 10, 20]
+    let questions: [Question]
+    var numberOfQuestions: Int {
+        questions.count
+    }
+    
+    let reset: () -> Void
+    
+    init(questions: [Question], reset: @escaping () -> Void) {
+        print("inside init")
+        self.questions = questions
+        self.reset = reset        
+    }
     
     var body: some View {
-        if !gameActive {
-            NavigationStack {
-                Form {
-                    Picker("Difficulty level", selection: $difficulty) {
-                        ForEach(2..<13) {
-                            Text("\($0)")
-                        }
-                    }
-                    
-                    Text("How many questions would you like to answer?")
-                    Picker("Select number of questions", selection: $numberOfQuestions) {
-                        ForEach(availableNumberOfQuestions, id: \.self) {
-                            Text("\($0)")
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    
-                    
-                    Button("Start") {
-                        questions = generateQuestions(difficulty: difficulty, numberOfQuestions: numberOfQuestions)
-                        gameActive = true
-                    }
-                    .frame(maxWidth: .infinity)
-                    .buttonStyle(.bordered)
-                    .background(.blue)
-                    .foregroundStyle(.white)
-                    .clipShape(.rect(cornerRadius: 20))
-                    
-                    
-                }
-                .navigationTitle("MultiTable")
-            }
-        } else {
-            Spacer()
-            Spacer()
-            
-            Text(questions[currentQuestion].questionText)
-                .font(.title)
-            TextField("Answer", value: $answer, format: .number)
-                .multilineTextAlignment(.center)
-                .font(.largeTitle)
-            
-            Spacer()
-            
-            Button("Next question") {
-                questionAnswered()
-            }
-            .alert("That's it!", isPresented: $showResults) {
-                Button("Start over") {
-                    reset()
-                }
-            } message: {
-                Text("Your score is: \(score)")
-            }
-            
-            Spacer()
-            Spacer()
+        Spacer()
+        Spacer()
+        
+        Text(questions[currentQuestion].questionText)
+            .font(.title)
+        TextField("Answer", value: $answer, format: .number)
+            .multilineTextAlignment(.center)
+            .font(.largeTitle)
+        
+        Spacer()
+        
+        Button("Next question") {
+            questionAnswered()
         }
+        .alert("That's it!", isPresented: $showResults) {
+            Button("Start over") {
+                reset()
+            }
+        } message: {
+            Text("Your score is: \(score)")
+        }
+        
+        Spacer()
+        Spacer()
     }
     
     func questionAnswered() {
@@ -109,25 +130,31 @@ struct ContentView: View {
         let question = questions[currentQuestion]
         return answer == question.result
     }
+}
+
+struct ContentView: View {
+    @State private var gameActive = false
+    @State private var questions = [Question]()
     
-    func reset() {
-        gameActive = false
-        difficulty = 0
-        numberOfQuestions = 5
-        questions = [Question]()
-        currentQuestion = 0
-        answer = 0
-        score = 0
-    }
-    
-    func generateQuestions(difficulty: Int, numberOfQuestions: Int) -> [Question] {
-        var questions = [Question]()
-        for _ in 0..<numberOfQuestions {
-            questions.append(Question(x: Int.random(in: 1...(difficulty + 2)), y: Int.random(in: 1...(difficulty + 2))))
+    var body: some View {
+        
+        NavigationStack {
+            VStack {
+                if !gameActive {
+                    SettingsView { generatedQuestions in
+                        print("here")
+                        questions = generatedQuestions
+                        gameActive = true
+                    }
+                } else {
+                    GameView(questions: questions) {
+                        gameActive = false
+                    }
+                }
+            }
+            .navigationTitle("MultiTable")
         }
-        return questions
     }
-    
     
 }
 
